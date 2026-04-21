@@ -1,32 +1,26 @@
-function [gamma, path_len, myshort] = find_shortest_path(zv, mys, myt, myw, P1, P2, P3)
+function [gamma, path_len, myshort] = find_shortest_path(zv, mys, myt, myw, P1, P2)
 % Find shortest path using Dijkstra's algorithm
 % Input:
-%   zv - grid point vector
-%   mys, myt - start and end indices of edges
+%   zv - grid point vector (without endpoints)
+%   mys, myt - start and end indices of edges (based on zv)
 %   myw - edge weights
-%   P1, P2 - start and end points (optional third point P3)
+%   P1, P2 - start and end points
 % Output:
 %   gamma - coordinates of points on the shortest path
 %   path_len - length of the path
 %   myshort - node indices of the path
 
-% Add endpoints to grid
-zv = [zv; P1; P2];
-if nargin >= 7
-    zv = [zv; P3];
-end
-
-% Build graph
+% Build graph with original zv
 G = graph(mys, myt, myw);
 
-% Find indices of endpoints
+% Find closest grid points to endpoints
 [~, idx1] = min(abs(zv - P1));
 [~, idx2] = min(abs(zv - P2));
 
 % Compute shortest path
 myshort = shortestpath(G, idx1, idx2);
 
-% Extract path points
+% Extract path points from original zv
 gamma = zv(myshort);
 
 % Compute path length

@@ -1,15 +1,15 @@
-function [mys, myt, myw_qh, distzvbry] = build_graph_edges(zv, dir, h, obs_list, vertcOut, weight_type)
+function [mys, myt, myw, distzvbry] = build_graph_edges(zv, dir, h, obs_list, vertcOut, weight_type)
 % Build graph edges and weights
 % Input:
 %   zv - grid point vector
 %   dir - direction parameter m
 %   h - grid step size
-%   obs_list - list of obstacles
-%   vertcOut - outer boundary
+%   obs_list - list of obstacles (not used in weight calculation, only for intersection)
+%   vertcOut - outer boundary (closed)
 %   weight_type - 'qh' (quasihyperbolic) or 'hyp' (hyperbolic)
 % Output:
 %   mys, myt - start and end indices of edges
-%   myw_qh - edge weights
+%   myw - edge weights
 %   distzvbry - distance from each point to the boundary
 
 if nargin < 6
@@ -19,30 +19,21 @@ end
 n = length(zv);
 
 % Compute distance from each point to the boundary
+% In Antti_250930, distzvbry only uses vertcOut
 distzvbry = zeros(1, n);
 for jj = 1:n
-    dist_to_obs = inf;
-    for k = 1:length(obs_list)
-        obs = obs_list{k};
-        if size(obs, 1) == 1
-            dist_to_obs = min(dist_to_obs, abs(zv(jj) - obs));
-        else
-            dist_to_obs = min(dist_to_obs, polydistNew(zv(jj), obs));
-        end
-    end
-    distzvbry(jj) = min([dist_to_obs, polydistNew(zv(jj), vertcOut(1:end-1))]);
+    distzvbry(jj) = min(polydistNew(zv(jj), vertcOut));
 end
 
 % Build edges
-max_edges = 8 * n;
-mys = zeros(1, max_edges);
-myt = zeros(1, max_edges);
+mys = zeros(1, 4*n);
+myt = zeros(1, 4*n);
 ind = 1;
 
 for jj = 1:n
-    for kk = jj+1:n
-        dist_val = abs(zv(jj) - zv(kk));
-        if dir*h - 1e-8 <= dist_val && dist_val <= sqrt(2)*dir*h + 1e-8
+    for kk = 1:n
+        if dir*h - 1e-8 <= abs(zv(jj) - zv(kk)) && ...
+           abs(zv(jj) - zv(kk)) <= sqrt(2)*dir*h + 1e-8 && (jj ~= kk)
             mys(ind) = jj;
             myt(ind) = kk;
             ind = ind + 1;
@@ -50,32 +41,35 @@ for jj = 1:n
     end
 end
 
-mys = mys(1:ind-1);
-myt = myt(1:ind-1);
-ind = ind - 1;
+% Remove duplicates and first empty row
+A = [mys' myt'];
+A1 = unique(A, 'rows');
+A1 = A1(2:end, :);
+mys = A1(:, 1)';
+myt = A1(:, 2)';
+ind = ind-2;
 
 % Compute weights
-myw_qh = zeros(1, ind);
-
+myw = zeros(1, ind);
 for jj = 1:ind
     ps = zv(mys(jj));
     pt = zv(myt(jj));
     
-    % Check for intersection with obstacles
-    if check_intersect(ps, pt, obs_list) == 0
+    temp1 = check_intersect(ps, pt, obs_list);
+    if temp1 == 0
         if strcmp(weight_type, 'qh')
-            myw_qh(jj) = abs(ps - pt) / min(distzvbry(mys(jj)), distzvbry(myt(jj)));
+            myw(jj) = abs(ps - pt) / min(distzvbry(mys(jj)), distzvbry(myt(jj)));
         else
-            myw_qh(jj) = minH2(ps, pt, vertcOut(1:end-1));
+            myw(jj) = minH2(ps, pt, vertcOut(1:end-1));
         end
     else
-        myw_qh(jj) = inf;
+        myw(jj) = inf;
     end
 end
 
 % Remove invalid edges
-valid_idx = ~isinf(myw_qh);
+valid_idx = ~isinf(myw);
 mys = mys(valid_idx);
 myt = myt(valid_idx);
-myw_qh = myw_qh(valid_idx);
+myw = myw(valid_idx);
 end

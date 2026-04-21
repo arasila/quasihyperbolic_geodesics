@@ -1,7 +1,7 @@
 close all; clear;
 
 % ========== Parameter Settings ==========
-h = 0.05;
+h = 0.1;
 dir = 4;
 n = 3;
 l3 = 1;
@@ -16,7 +16,7 @@ vertcOut = [vertOut; vertOut(1)];
 z0 = l1 + r*cos(pi/n) - l4 + 0i;
 z_list = generate_point_list(n, z0);
 
-% Conformal mapping
+% Conformal mapping (requires SC Toolbox)
 f = hplmap(polygon(vertOut));
 f_inv = inv(f);
 
@@ -26,11 +26,18 @@ obs_list = {vertcOut.'};
 xmi = min(real(vertOut)) - 1; xma = max(real(vertOut)) + 1;
 ymi = min(imag(vertOut)) - 1; yma = max(imag(vertOut)) + 1;
 
-zv = generate_grid_polygon([xmi, xma], [ymi, yma], h, vertOut, obs_list, ...
-    @(z) z(abs(z) <= real(z0)));
+[xx, yy] = meshgrid(double(xmi:h:xma), double(ymi:h:yma));
+zz = xx + 1i*yy;
+
+% Screen points outside the outer polygon or on the boundary
+[in1, on1] = inpolygon(xx, yy, real(vertcOut), imag(vertcOut));
+zz(~in1) = NaN + 1i*NaN;
+zz(on1) = NaN + 1i*NaN;
+zz = zz(abs(zz) <= real(z0));
+zv = zz(abs(zz) >= 0);
 
 % ========== Build Graph ==========
-[mys, myt, myw, ~] = build_graph_edges(zv, dir, h, obs_list, vertcOut);
+[mys, myt, myw] = build_graph_edges(zv, dir, h, obs_list, vertcOut);
 
 % ========== Visualization ==========
 figure;
@@ -45,12 +52,12 @@ for jj = 1:length(z_list)
     P2 = z_list_closed(jj+1);
     
     % Quasihyperbolic geodesic
-    [gamma_qh, ~, ~] = find_shortest_path(zv, mys, myt, myw, P1, P2);
+    [gamma_qh, ~] = find_shortest_path(zv, mys, myt, myw, P1, P2);
     plot_geodesic(gamma_qh, 'Color', 'g');
     qh_radius = min(qh_radius, min(abs(gamma_qh)));
     
     % Hyperbolic geodesic
-    gamma_hyp = generate_hyper_geodesic(P1, P2, f, f_inv);
+    gamma_hyp = generate_hyperbolic_geodesic(P1, P2, f, f_inv);
     plot_geodesic(gamma_hyp, 'Color', 'r');
     hyper_radius = min(hyper_radius, min(abs(gamma_hyp)));
 end

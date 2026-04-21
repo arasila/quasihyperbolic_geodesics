@@ -44,6 +44,9 @@ if ~isempty(p.Results.Title)
 end
 
 if ~isempty(p.Results.Legend)
-    legend(p.Results.Legend{:});
+    legend(p.Results.Legend);
 end
+
+% Make figure wider (widemarg equivalent)
+set(gcf, 'Position', get(gcf, 'Position') .* [1 1 1.2 1]);
 end

@@ -20,22 +20,18 @@ P1 = -2 + 0i;
 P2 =  2 + 2i;
 
 % Algorithm parameters
-h = 0.02;       % Grid step size (smaller is more accurate but computationally expensive)
-m = 6;          % Neighborhood parameter (dir in the paper, controls number of neighbors per point)
+h = 0.05;       % Grid step size (smaller is more accurate but computationally expensive)
+dir = 6;        % Neighborhood parameter (m in the paper)
 
 % Visualization options
 show_grid = false;       % Whether to display grid points
 show_exact = true;       % Whether to display exact hyperbolic geodesic (requires SC Toolbox)
-save_figure = false;     % Whether to save the figure
-output_filename = 'geodesic_result.png';
 
 %% ========== Preprocessing ==========
 fprintf('=== Hyperbolic and Quasihyperbolic Geodesic Computation ===\n\n');
 
-% Close polygon
-vertcOut = [vertOut; vertOut(1)];
-
 % Check if points are inside the polygon
+vertcOut = [vertOut; vertOut(1)];
 [in1, ~] = inpolygon(real(P1), imag(P1), real(vertcOut), imag(vertcOut));
 [in2, ~] = inpolygon(real(P2), imag(P2), real(vertcOut), imag(vertcOut));
 
@@ -48,145 +44,110 @@ end
 
 fprintf('Domain: polygon with %d vertices\n', length(vertOut));
 fprintf('Points: P1 = %.3f + %.3fi, P2 = %.3f + %.3fi\n', real(P1), imag(P1), real(P2), imag(P2));
-fprintf('Parameters: h = %.4f, m = %d\n\n', h, m);
+fprintf('Parameters: h = %.4f, dir = %d\n\n', h, dir);
 
-obs_list = {};  % No inner holes
+obs_list = {vertcOut.'};
 
-%% ========== Step 1: Generate Grid ==========
-fprintf('Step 1: Generating grid...\n');
+%% ========== Compute Quasihyperbolic Geodesic ==========
+fprintf('Computing QH geodesic P1->P2...\n');
 
-% Compute grid range (with margin around points)
-margin = 0.5;
-xmi = min(real([P1, P2])) - margin;
-xma = max(real([P1, P2])) + margin;
-ymi = min(imag([P1, P2])) - margin;
-yma = max(imag([P1, P2])) + margin;
+% Generate mesh
+xmi = min(real(P1), real(P2));
+xma = max(real(P1), real(P2));
+ymi = min(imag(P1), imag(P2));
+yma = max(imag(P1), imag(P2));
 
-% Ensure grid does not exceed polygon boundary
-xmi = max(xmi, min(real(vertOut)));
-xma = min(xma, max(real(vertOut)));
-ymi = max(ymi, min(imag(vertOut)));
-yma = min(yma, max(imag(vertOut)));
+[xx, yy] = meshgrid(double(xmi:h:xma), double(ymi:h:yma));
+zz = xx + 1i*yy;
 
-zv = generate_grid_polygon([xmi, xma], [ymi, yma], h, vertOut, obs_list, []);
+% Screen points outside the outer polygon or on the boundary
+[in1, on1] = inpolygon(xx, yy, real(vertcOut), imag(vertcOut));
+zz(~in1) = NaN + 1i*NaN;
+zz(on1) = NaN + 1i*NaN;
+
+zv = zz(abs(zz) >= 0);
 zv = [zv; P1; P2];
 
-fprintf('  Generated %d grid points\n', length(zv));
+% Build graph and find shortest path
+[mys, myt, myw] = build_graph_edges(zv, dir, h, obs_list, vertcOut);
+[gamma_qh, len_qh] = find_shortest_path(zv, mys, myt, myw, P1, P2);
 
-%% ========== Step 2: Build Weighted Graph ==========
-fprintf('Step 2: Building weighted graph...\n');
-
-% Graph with quasihyperbolic metric
-[mys_qh, myt_qh, myw_qh] = build_graph_edges(zv, m, h, vertOut, obs_list, 'qh');
-fprintf('  QH graph: %d edges\n', length(myw_qh));
-
-% Graph with hyperbolic metric (approximate)
-[mys_hyp, myt_hyp, myw_hyp] = build_graph_edges(zv, m, h, vertOut, obs_list, 'hyp');
-fprintf('  Hyp graph: %d edges\n', length(myw_hyp));
-
-%% ========== Step 3: Compute Shortest Paths ==========
-fprintf('Step 3: Computing shortest paths...\n');
-
-% Quasihyperbolic geodesic
-[gamma_qh, len_qh] = find_shortest_path(zv, mys_qh, myt_qh, myw_qh, P1, P2);
 fprintf('  QH geodesic length: %.5f\n', len_qh);
 
-% Approximate hyperbolic geodesic
-[gamma_hyp_approx, len_hyp_approx] = find_shortest_path(zv, mys_hyp, myt_hyp, myw_hyp, P1, P2);
-fprintf('  Hyp geodesic length (approx): %.5f\n', len_hyp_approx);
-
-%% ========== Step 4: Exact Hyperbolic Geodesic (requires SC Toolbox) ==========
+%% ========== Compute Exact Hyperbolic Geodesic ==========
 if show_exact
-    fprintf('Step 4: Computing exact hyperbolic geodesic...\n');
+    fprintf('Computing exact hyperbolic geodesic...\n');
     try
         poly = polygon(vertOut);
         halfplane_f = hplmap(poly);
         
-        % Map to upper half-plane
-        P1_inv = evalinv(halfplane_f, P1);
-        P2_inv = evalinv(halfplane_f, P2);
+        gamma_exact = generate_hyperbolic_geodesic_hplmap(P1, P2, halfplane_f);
+        len_exact = compute_hyperbolic_distance_hplmap(P1, P2, halfplane_f);
         
-        % Generate half-plane geodesic
-        t_path = generate_halfplane_geodesic(P1_inv, P2_inv, 200);
-        
-        % Map back to original domain
-        gamma_hyp_exact = halfplane_f(t_path);
-        
-        % Compute exact length
-        len_hyp_exact = acosh(1 + abs(P1_inv - P2_inv)^2 / (2 * imag(P1_inv) * imag(P2_inv)));
-        fprintf('  Exact Hyp geodesic length: %.5f\n', len_hyp_exact);
+        fprintf('  Exact Hyp geodesic length: %.5f\n', len_exact);
     catch ME
         fprintf('  Warning: SC Toolbox not available or mapping failed.\n');
         fprintf('  %s\n', ME.message);
         show_exact = false;
-        gamma_hyp_exact = [];
-        len_hyp_exact = NaN;
+        gamma_exact = [];
+        len_exact = NaN;
     end
 end
 
-%% ========== Step 5: Visualization ==========
-fprintf('Step 5: Visualizing results...\n');
-
-figure('Position', [100, 100, 900, 700]);
+%% ========== Visualization ==========
+figure('Position', [100, 100, 800, 600]);
 hold on;
 
-% Plot polygon boundary
-plot(real(vertcOut), imag(vertcOut), 'k-', 'LineWidth', 2.5, 'DisplayName', 'Domain boundary');
+% Plot domain boundary
+plot_domain_boundary(vertOut, obs_list);
 
 % Plot grid points (optional)
 if show_grid
-    plot(real(zv), imag(zv), 'c.', 'MarkerSize', 2, 'DisplayName', 'Grid points');
+    margin = 0.5;
+    xmi_grid = min(real([P1, P2])) - margin;
+    xma_grid = max(real([P1, P2])) + margin;
+    ymi_grid = min(imag([P1, P2])) - margin;
+    yma_grid = max(imag([P1, P2])) + margin;
+    xmi_grid = max(xmi_grid, min(real(vertOut)));
+    xma_grid = min(xma_grid, max(real(vertOut)));
+    ymi_grid = max(ymi_grid, min(imag(vertOut)));
+    yma_grid = min(yma_grid, max(imag(vertOut)));
+    
+    [xx_grid, yy_grid] = meshgrid(double(xmi_grid:h:xma_grid), double(ymi_grid:h:yma_grid));
+    zz_grid = xx_grid + 1i*yy_grid;
+    [in_grid, on_grid] = inpolygon(xx_grid, yy_grid, real(vertcOut), imag(vertcOut));
+    zz_grid(~in_grid) = NaN + 1i*NaN;
+    zz_grid(on_grid) = NaN + 1i*NaN;
+    zv_grid = zz_grid(abs(zz_grid) >= 0);
+    
+    plot_grid_points(zv_grid, 'MarkerSize', 2, 'Color', 'c');
 end
-
-% Plot exact hyperbolic geodesic
-if show_exact && ~isempty(gamma_hyp_exact)
-    h_exact = plot(real(gamma_hyp_exact), imag(gamma_hyp_exact), ...
-        'g-', 'LineWidth', 2, 'DisplayName', 'Hyperbolic (exact)');
-end
-
-% Plot approximate hyperbolic geodesic
-h_hyp = plot(real(gamma_hyp_approx), imag(gamma_hyp_approx), ...
-    'm--', 'LineWidth', 1.5, 'DisplayName', 'Hyperbolic (approx)');
 
 % Plot quasihyperbolic geodesic
-h_qh = plot(real(gamma_qh), imag(gamma_qh), ...
-    'b:', 'LineWidth', 1.5, 'DisplayName', 'Quasihyperbolic');
+plot_geodesic(gamma_qh, 'Color', 'b', 'LineStyle', ':', 'LineWidth', 1.5, 'DisplayName', 'Quasihyperbolic');
 
-% Plot start and end points
-plot(real(P1), imag(P1), 'ko', 'MarkerSize', 10, ...
-    'MarkerFaceColor', 'k', 'DisplayName', sprintf('P1 (%.2f, %.2f)', real(P1), imag(P1)));
-plot(real(P2), imag(P2), 'ks', 'MarkerSize', 10, ...
-    'MarkerFaceColor', 'k', 'DisplayName', sprintf('P2 (%.2f, %.2f)', real(P2), imag(P2)));
+% Plot exact hyperbolic geodesic
+if show_exact && ~isempty(gamma_exact)
+    h_exact = plot_geodesic(gamma_exact, 'Color', 'g', 'LineStyle', '-', 'LineWidth', 1.5, 'DisplayName', 'Hyperbolic (exact)');
+    set_layer_order(h_exact, 'bottom');
+end
 
-% Figure settings
-axis equal;
-xlim([xmi - 0.5, xma + 0.5]);
-ylim([ymi - 0.5, yma + 0.5]);
+% Plot points
+plot_points([P1, P2], 'MarkerSize', 8, 'MarkerFaceColor', 'k');
+text(real(P1)-0.15, imag(P1)-0.15, 'P1', 'FontSize', 10, 'FontWeight', 'bold');
+text(real(P2)+0.1, imag(P2)+0.1, 'P2', 'FontSize', 10, 'FontWeight', 'bold');
+
+setup_figure('Box', 'on', 'Grid', 'on');
 xlabel('Re(z)');
 ylabel('Im(z)');
-title(sprintf('Geodesics in Polygonal Domain (h=%.3f, m=%d)', h, m));
+title(sprintf('Geodesics in Polygonal Domain (h=%.3f, dir=%d)', h, dir));
 legend('Location', 'best');
-box on;
-grid on;
 
-%% ========== Output Results Summary ==========
+%% ========== Output Results ==========
 fprintf('\n=== Results Summary ===\n');
 fprintf('Quasihyperbolic length:      %.5f\n', len_qh);
-fprintf('Hyperbolic length (approx):  %.5f\n', len_hyp_approx);
-if show_exact && ~isnan(len_hyp_exact)
-    fprintf('Hyperbolic length (exact):   %.5f\n', len_hyp_exact);
-    fprintf('Approximation error:         %.5f\n', abs(len_hyp_exact - len_hyp_approx));
+if show_exact && ~isnan(len_exact)
+    fprintf('Hyperbolic length (exact):   %.5f\n', len_exact);
+    fprintf('Ratio k_G / rho_G:           %.4f\n', len_qh / len_exact);
 end
-
-% Distance ratio (paper formula 4.1)
-ratio = len_qh / len_hyp_approx;
-fprintf('\nRatio k_G / rho_G: %.4f\n', ratio);
-fprintf('Theoretical bounds: 1 <= k_G/rho_G <= 2 (for simply connected domains)\n');
-
-%% ========== Save Figure ==========
-if save_figure
-    saveas(gcf, output_filename);
-    fprintf('\nFigure saved to: %s\n', output_filename);
-end
-
 fprintf('\n=== Done ===\n');

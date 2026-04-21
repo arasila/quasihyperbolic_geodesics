@@ -19,53 +19,55 @@ This toolkit implements numerical methods for computing geodesics in planar doma
 - Bifurcation point analysis
 
 ---
-
-### File Descriptions
-
 | File | Description |
 |------|-------------|
 | `main.m` | Main entry point for general geodesic computation |
 | **core/** | Core algorithm modules |
-| `generate_grid_polygon.m` | Grid generation in polygonal domains |
 | `build_graph_edges.m` | Graph edge and weight construction |
-| `find_shortest_path.m` | Dijkstra's shortest path algorithm |
-| `find_bifurcation_point.m` | Bifurcation detection (two paths) |
-| `find_bifurcation_on_real_axis.m` | Bifurcation detection on real axis |
-| `compute_single_geodesic.m` | Single geodesic computation wrapper |
-| `polydistNew.m` | Point-to-polygon distance calculation |
 | `check_intersect.m` | Segment-obstacle intersection test |
-| `rhoH.m` | Hyperbolic distance in upper half-plane |
+| `compute_single_geodesic.m` | Single geodesic computation wrapper |
+| `find_bifurcation_on_real_axis.m` | Bifurcation detection on real axis |
+| `find_bifurcation_point.m` | Bifurcation detection (two paths) |
+| `find_shortest_path.m` | Dijkstra's shortest path algorithm |
+| `generate_grid_polygon.m` | Grid generation in polygonal domains |
 | `minH2.m` | Approximate hyperbolic distance in polygon |
+| `polydistNew.m` | Point-to-polygon distance calculation |
+| `rhoH.m` | Hyperbolic distance in upper half-plane |
 | **hyperbolic/** | Hyperbolic geometry modules |
-| `compute_exact_geodesic_hplmap.m` | Exact geodesic via hplmap |
-| `generate_halfplane_geodesic.m` | Half-plane geodesic generation |
-| `compute_exact_geodesic_angular.m` | Exact geodesic in angular domains |
-| `compute_exact_length_angular.m` | Exact length in angular domains |
-| `generate_hyper_geodesic.m` | General hyperbolic geodesic |
+| `compute_hyperbolic_distance.m` | Exact hyperbolic distance via conformal mapping |
+| `compute_hyperbolic_distance_hplmap.m` | Exact hyperbolic distance via hplmap |
+| `generate_hyperbolic_geodesic.m` | General hyperbolic geodesic via conformal mapping |
+| `generate_hyperbolic_geodesic_angular.m` | Exact geodesic in angular domains |
+| `generate_hyperbolic_geodesic_hplmap.m` | Exact geodesic via hplmap (SC Toolbox) |
 | **domain/** | Domain generation modules |
 | `generate_asterisk_polygon.m` | n-asterisk polygon generation |
 | `generate_point_list.m` | Symmetric point list generation |
 | **visualize/** | Visualization modules |
-| `plot_domain.m` | Plot domain boundary |
-| `plot_path.m` | Plot geodesic path |
-| `plot_points.m` | Plot point markers |
+| `plot_domain_boundary.m` | Plot domain boundary and obstacles |
+| `plot_geodesic.m` | Plot geodesic path |
 | `plot_grid_points.m` | Plot grid points |
 | `plot_inscribed_circle.m` | Plot inscribed circle |
+| `plot_points.m` | Plot point markers |
 | `set_layer_order.m` | Set layer ordering in figure |
 | `setup_figure.m` | Global figure settings |
 | **experiments/** | Experiment scripts (paper reproduction) |
-| `exp_angle_single.m` | Single geodesic in angular domain |
-| `exp_angle_bifurcation.m` | Bifurcation in convex domain |
-| `exp_asterisk.m` | n-asterisk domain analysis |
-| `exp_lemma51.m` | Lemma 5.1 verification |
-| `exp_non_convex.m` | Bifurcation in non-convex domain |
+| `main_angle_domain.m` | Single geodesic in angular domain |
+| `main_angle_domain_exp.m` | Bifurcation analysis in convex angular domain |
+| `main_asterisk.m` | n-asterisk domain analysis (inscribed circles) |
+| `main_non_convex_domain.m` | Bifurcation analysis in non-convex domain |
+| **multipunctured/** | Multiply punctured domain experiments |
+| `lemma_51.m` | Lemma 5.1 verification (original code) |
+| `lemma_51_2.m` | Lemma 5.1 variant |
+| `cal_error.m` | Error calculation for Lemma 5.1 |
+| `widemarg.m` | Adjust figure width |
+
 
 ---
 
 ## Requirements
 
 ### MATLAB Version
-- MATLAB R2019b or later
+- MATLAB R2020b or later
 
 ### Required Toolboxes
 - MATLAB core toolbox
@@ -214,11 +216,11 @@ P2 = 1.5 + 0.5i;
 
 | Script | Paper Section | Description |
 |--------|---------------|-------------|
-| `exp_angle_single.m` | - | Single geodesic in angular domain |
-| `exp_angle_bifurcation.m` | 5.4 | Geodesic bifurcation in convex domain |
-| `exp_asterisk.m` | 7 | Inscribed circle comparison in n-asterisk domain |
-| `exp_lemma51.m` | 5.3 | Non-uniqueness of geodesics in multiply connected domain |
-| `exp_non_convex.m` | 5.5 | Bifurcation analysis in non-convex domain |
+| `main_angle_domain.m` | 5.4 | Single geodesic in angular domain |
+| `main_angle_domain_exp.m` | 5.4 | Geodesic bifurcation in convex domain |
+| `main_asterisk.m` | 7 | Inscribed circle comparison in n-asterisk domain |
+| `multipunctured` | 5.3 | Non-uniqueness of geodesics in multiply connected domain |
+| `main_non_convex_domain.m` | 5.5 | Bifurcation analysis in non-convex domain |
 
 ## FAQ
 
@@ -261,5 +263,6 @@ disp(result);  % Should be 0 if no intersection
 
 ## Remark
 - The whole program is summarized from the experiment codes. We use Deepseek to summarize, translate.
-- For domain with boundary, currently it works on simply connected domain. Actually it also works on multi-punctured domain, but it is hard to program, we gonna add more codes later.
+- For domain with boundary, currently it works on simply connected domain. Actually it also works on multi-punctured domain, but it is hard to program. We gonna add more codes later.
 - Sometimes it will take a bit more time, depending on how many points in mesh.
+- Notice that in non-simply connected domain, the hyperbolic geodesic is not defined.
