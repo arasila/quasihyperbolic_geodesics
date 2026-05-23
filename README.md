@@ -1,6 +1,6 @@
 # Geodesic Computation in Planar Domains
 
-A MATLAB toolkit for computing **hyperbolic geodesics** and **quasihyperbolic geodesics** in arbitrary simply connected polygonal domains, based on the paper *"Shortest Paths in Planar Domains with Hyperbolic Type Metrics"* by Gao, Hakanen, Rasila, and Vuorinen.
+A MATLAB toolkit for computing **hyperbolic geodesics** and **quasihyperbolic geodesics** in arbitrary simply connected polygonal domains, based on the paper *"Shortest Paths in Planar Domains with Hyperbolic Type Metrics"* by Gao, Hakanen, Rasila, and Vuorinen. Journal of Mathematical Analysis and Applications, 2026, 130801, ISSN 0022-247X, https://doi.org/10.1016/j.jmaa.2026.130801.
 
 ---
 
